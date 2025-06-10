@@ -1,0 +1,73 @@
+name: Test Commit
+
+on: # yamllint disable-line rule:truthy
+  push:
+
+env:
+  GH_HOST: github.com
+
+jobs:
+  test-signed-commit:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+
+    - id: app-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: ${{ vars.OWNER }}
+
+    - name: Auth to GH CLI
+      run: |
+        # Auth to GH CLI
+        echo "${{ steps.app-token.outputs.token }}" | \
+          gh auth login --hostname "$GH_HOST" --with-token
+      shell: bash
+
+    - name: Configure git credential helper
+      run: gh auth setup-git
+      shell: bash
+
+    - name: Debug
+      if: runner.debug == '1'
+      run: gh auth status
+      shell: bash
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Create test file
+      run: date > date.txt
+    
+    - name: Stage test file
+      run: git add date.txt
+
+    - id: commit-changes
+      name: Commit changes
+      uses: michalbachowski/signed-commit/.github/actions/grafana-github-api-commit@test
+      with:
+        commit-message: Test commit
+        token: ${{ steps.gh-auth.outputs.token }}
+      
+    - if: >-
+        ${{
+          steps.commit-changes.outputs.commit-response.data.createCommitOnBranch.commit.changedFilesIfAvailable > 0
+        }}
+      name: Set output
+      run: >-
+        echo
+        "::warning title=GitHub Actions Update::
+        Update the branch with commit:
+        ${{ steps.commit-changes.outputs.commit-response.data.createCommitOnBranch.commit.url }}"
+      
+    - if: >-
+        ${{
+          steps.commit-changes.outputs.commit-response.data.createCommitOnBranch.commit.changedFilesIfAvailable == 0
+        }}
+      name: Set output
+      run: >-
+        echo
+        "::warning title=GitHub Actions Update::
+        No changes detected, nothing commited!"
