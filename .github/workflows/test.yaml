@@ -46,7 +46,7 @@ jobs:
 
     - id: commit-changes
       name: Commit changes
-      uses: michalbachowski/signed-commit/.github/actions/grafana-github-api-commit@test
+      uses: michalbachowski/signed-commit/.github/actions/grafana-github-api-commit-action@test
       with:
         commit-message: Test commit
         token: ${{ steps.gh-auth.outputs.token }}
